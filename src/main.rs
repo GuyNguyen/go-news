@@ -13,13 +13,10 @@ const HELP_MESSAGE: &str = "
     You have summoned me. Let's see about getting you what you need.
 
     ? Need technical help?
-    => Post in the <#CHANNEL_ID> channel and other humans will assist you.
-
-    ? Something wrong?
-    => You can flag an admin with @admin
+    => Message @guy0284, and he'll tenuki over
 
     I hope that resolves your issue!
-    -- Helpbot
+    -- Go News
 
     ";
 
