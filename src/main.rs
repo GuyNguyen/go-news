@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, process::exit};
 use dotenv::dotenv;
 
 use serenity::{
@@ -44,6 +44,12 @@ impl EventHandler for Handler {
 
 #[tokio::main]
 async fn main() {
+    ctrlc::set_handler(move || {
+        println!("Exiting...");
+        exit(0)
+    })
+    .expect("Error setting Ctrl-C handler");
+
     dotenv().ok();
 
     let token = env::var("DISCORD_TOKEN")
