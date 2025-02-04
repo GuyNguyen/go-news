@@ -7,6 +7,8 @@ use serenity::{
     prelude::*,
 };
 
+mod feed_reader;
+
 const HELP_MESSAGE: &str = "
     Hello there, Human!
 
@@ -48,6 +50,8 @@ async fn main() {
     .expect("Error setting Ctrl-C handler");
 
     dotenv().ok();
+
+    let _result = feed_reader::feed_reader().await;
 
     let token = env::var("DISCORD_TOKEN")
         .expect("Expected a token in the environment");
