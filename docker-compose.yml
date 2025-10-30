@@ -1,0 +1,42 @@
+services:
+  frontend:
+    build: .
+    # depends_on:
+    #   backend:
+    #     condition: service_completed_successfully
+    container_name: go-news
+    restart: always
+    ports:
+      - 8000:8000
+    working_dir: /app
+    env_file:
+      - .env
+    # environment:
+    #   - BACKEND_API_URL=${BACKEND_API_URL}
+    #   - CHECK_INTERVAL_SECONDS=${CHECK_INTERVAL_SECONDS}
+    #   - CHANNEL_ID=${CHANNEL_ID}
+    #   - DISCORD_TOKEN=${DISCORD_TOKEN}
+    #   - RUST_LOG=${DISCORD_TOKEN}
+
+  backend:
+    build: ../go-news-backend/
+    # depends_on:
+    #   mongo:
+    #     condition: service_completed_successfully
+    container_name: go-news-backend
+    restart: always
+    ports:
+      - 8080:8080
+    working_dir: /app
+
+  mongo:
+    image: mongo
+    container_name: go-news-db
+    restart: always
+    ports:
+      - 27017:27017
+    volumes:
+      - ~/mongo:/data/db
+
+volumes:
+  mongodb:
