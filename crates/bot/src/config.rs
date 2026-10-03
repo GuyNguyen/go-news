@@ -3,7 +3,6 @@ use serde::Deserialize;
 use serenity::model::id::ChannelId;
 use std::env;
 use std::fs;
-use std::path::Path;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
@@ -57,32 +56,57 @@ impl BotConfig {
     /// Loads configuration from TOML file (default: config.toml or CONFIG_PATH),
     /// layered with environment variable overrides.
     pub fn load() -> Self {
-        let config_path = env::var("CONFIG_PATH").unwrap_or_else(|_| "config.toml".to_string());
+        let candidate_paths = if let Ok(custom) = env::var("CONFIG_PATH") {
+            vec![std::path::PathBuf::from(custom)]
+        } else {
+            vec![
+                std::path::PathBuf::from("config.toml"),
+                std::path::PathBuf::from("/app/config.toml"),
+            ]
+        };
 
-        let mut settings = if Path::new(&config_path).exists() {
-            info!("Loading bot configuration from TOML file: {}", config_path);
-            match fs::read_to_string(&config_path) {
-                Ok(content) => match toml::from_str::<ConfigFile>(&content) {
-                    Ok(parsed) => parsed.bot.unwrap_or_default(),
-                    Err(e) => {
-                        warn!(
-                            "Failed to parse {}: {}. Falling back to default settings / env.",
-                            config_path, e
-                        );
-                        BotSettings::default()
-                    }
-                },
-                Err(e) => {
-                    warn!(
-                        "Failed to read {}: {}. Falling back to default settings / env.",
-                        config_path, e
+        let mut settings = BotSettings::default();
+        let mut loaded = false;
+
+        for path in &candidate_paths {
+            if path.exists() {
+                if path.is_dir() {
+                    log::error!(
+                        "Config path '{:?}' is a directory, not a file! (If mounted via Docker, recreate config.toml on the host as a file)",
+                        path
                     );
-                    BotSettings::default()
+                    continue;
+                }
+
+                match fs::read_to_string(path) {
+                    Ok(content) => match toml::from_str::<ConfigFile>(&content) {
+                        Ok(parsed) => {
+                            info!("Loaded bot configuration from {:?}", path);
+                            if let Some(bot_cfg) = parsed.bot {
+                                settings = bot_cfg;
+                            } else {
+                                warn!("Parsed {:?} successfully, but no '[bot]' section was found.", path);
+                            }
+                            loaded = true;
+                            break;
+                        }
+                        Err(e) => {
+                            log::error!("Failed to parse TOML configuration from {:?}: {}", path, e);
+                        }
+                    },
+                    Err(e) => {
+                        log::error!(
+                            "Found config file at {:?} but failed to read it: {}. (Check permissions, e.g. chmod 644)",
+                            path, e
+                        );
+                    }
                 }
             }
-        } else {
-            BotSettings::default()
-        };
+        }
+
+        if !loaded {
+            info!("No config file loaded. Relying on environment variables and defaults.");
+        }
 
         // Environment overrides
         let discord_token = env::var("DISCORD_TOKEN")
@@ -158,6 +182,21 @@ mod tests {
         assert_eq!(bot.channel_id.unwrap().to_u64(), Some(9876543210123));
         assert_eq!(bot.api_url, "http://backend:8080");
         assert_eq!(bot.check_interval_seconds, 60);
+    }
+
+    #[test]
+    fn test_parse_full_config_file() {
+        let content = std::fs::read_to_string("../../config.toml").expect("Failed to read config.toml");
+        let parsed: Result<ConfigFile, _> = toml::from_str(&content);
+        match parsed {
+            Ok(cfg) => {
+                let bot = cfg.bot.expect("bot section missing");
+                assert!(bot.discord_token.is_some());
+            }
+            Err(e) => {
+                panic!("Failed to parse config.toml: {}", e);
+            }
+        }
     }
 }
 

@@ -2,7 +2,6 @@ use log::{info, warn};
 use serde::Deserialize;
 use std::env;
 use std::fs;
-use std::path::Path;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct BackendSettings {
@@ -82,32 +81,57 @@ impl AppConfig {
     /// Loads configuration from TOML file (default: config.toml or CONFIG_PATH),
     /// layered with environment variable overrides.
     pub fn load() -> Self {
-        let config_path = env::var("CONFIG_PATH").unwrap_or_else(|_| "config.toml".to_string());
+        let candidate_paths = if let Ok(custom) = env::var("CONFIG_PATH") {
+            vec![std::path::PathBuf::from(custom)]
+        } else {
+            vec![
+                std::path::PathBuf::from("config.toml"),
+                std::path::PathBuf::from("/app/config.toml"),
+            ]
+        };
 
-        let mut settings = if Path::new(&config_path).exists() {
-            info!("Loading backend configuration from TOML file: {}", config_path);
-            match fs::read_to_string(&config_path) {
-                Ok(content) => match toml::from_str::<ConfigFile>(&content) {
-                    Ok(parsed) => parsed.backend.unwrap_or_default(),
-                    Err(e) => {
-                        warn!(
-                            "Failed to parse {}: {}. Falling back to default settings.",
-                            config_path, e
-                        );
-                        BackendSettings::default()
-                    }
-                },
-                Err(e) => {
-                    warn!(
-                        "Failed to read {}: {}. Falling back to default settings.",
-                        config_path, e
+        let mut settings = BackendSettings::default();
+        let mut loaded = false;
+
+        for path in &candidate_paths {
+            if path.exists() {
+                if path.is_dir() {
+                    log::error!(
+                        "Config path '{:?}' is a directory, not a file! (If mounted via Docker, recreate config.toml on the host as a file)",
+                        path
                     );
-                    BackendSettings::default()
+                    continue;
+                }
+
+                match fs::read_to_string(path) {
+                    Ok(content) => match toml::from_str::<ConfigFile>(&content) {
+                        Ok(parsed) => {
+                            info!("Loaded backend configuration from {:?}", path);
+                            if let Some(backend_cfg) = parsed.backend {
+                                settings = backend_cfg;
+                            } else {
+                                warn!("Parsed {:?} successfully, but no '[backend]' section was found.", path);
+                            }
+                            loaded = true;
+                            break;
+                        }
+                        Err(e) => {
+                            log::error!("Failed to parse TOML configuration from {:?}: {}", path, e);
+                        }
+                    },
+                    Err(e) => {
+                        log::error!(
+                            "Found config file at {:?} but failed to read it: {}. (Check permissions, e.g. chmod 644)",
+                            path, e
+                        );
+                    }
                 }
             }
-        } else {
-            BackendSettings::default()
-        };
+        }
+
+        if !loaded {
+            info!("No config file loaded. Relying on environment variables and defaults.");
+        }
 
         // Environment variable overrides
         if let Ok(val) = env::var("DATABASE_URL") {
