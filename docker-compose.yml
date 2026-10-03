@@ -1,42 +1,46 @@
 services:
   frontend:
-    build: .
-    # depends_on:
-    #   backend:
-    #     condition: service_completed_successfully
+    image: go-news-frontend:latest
+    build:
+      context: .
+      dockerfile: crates/bot/Dockerfile
     container_name: go-news
     restart: always
-    ports:
-      - 8000:8000
     working_dir: /app
+    volumes:
+      - ./config.toml:/app/config.toml:ro
     env_file:
-      - .env
-    # environment:
-    #   - BACKEND_API_URL=${BACKEND_API_URL}
-    #   - CHECK_INTERVAL_SECONDS=${CHECK_INTERVAL_SECONDS}
-    #   - CHANNEL_ID=${CHANNEL_ID}
-    #   - DISCORD_TOKEN=${DISCORD_TOKEN}
-    #   - RUST_LOG=${DISCORD_TOKEN}
+      - path: .env
+        required: false
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - backend
+    networks:
+      - internal_net
 
   backend:
-    build: ../go-news-backend/
-    # depends_on:
-    #   mongo:
-    #     condition: service_completed_successfully
+    image: go-news-backend:latest
+    build:
+      context: .
+      dockerfile: crates/backend/Dockerfile
     container_name: go-news-backend
     restart: always
-    ports:
-      - 8080:8080
     working_dir: /app
-
-  mongo:
-    image: mongo
-    container_name: go-news-db
-    restart: always
-    ports:
-      - 27017:27017
     volumes:
-      - ~/mongo:/data/db
+      - ./data:/app/data
+      - ./config.toml:/app/config.toml:ro
+    env_file:
+      - path: .env
+        required: false
+    security_opt:
+      - no-new-privileges:true
+    expose:
+      - 8080
+    networks:
+      - internal_net
 
-volumes:
-  mongodb:
+networks:
+  internal_net:
+    driver: bridge
+    internal: false

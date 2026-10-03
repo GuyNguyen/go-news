@@ -1,0 +1,41 @@
+# ==============================================================================
+# Go News Configuration (config.toml)
+# ==============================================================================
+# Central configuration for both the backend service and the Discord bot.
+# Copy this file to `config.toml` to customize your deployment.
+# Sensitive values (like discord_token) can be set here or via environment variables.
+
+[backend]
+# SQLite database connection URL
+# Automatically creates necessary directories and tables with WAL mode
+database_url = "sqlite://data/go_news.db?mode=rwc"
+
+# RSS feed URL to monitor for Go news
+feed_url = "https://www.igomely.com/feed"
+
+# Polling interval in seconds between RSS feed checks (default: 1800s = 30m)
+check_interval_seconds = 1800
+
+# Retention window in days for posted news articles before automatic cleanup
+retention_days = 60
+
+# HTTP server bind address and port
+host = "0.0.0.0"
+port = 8080
+
+[bot]
+# HTTP URL to the backend service API
+# - In Docker Compose: "http://backend:8080"
+# - Local native runs: "http://localhost:8080"
+api_url = "http://backend:8080"
+
+# Polling interval in seconds to check the backend for unposted news items
+check_interval_seconds = 60
+
+# Discord Bot Token (Alternatively set via DISCORD_TOKEN environment variable)
+# discord_token = "your-bot-token-here"
+
+# Discord Channel ID where news embeds will be posted
+# Can be formatted as integer (1333568486215254187) or string ("1333568486215254187")
+# (Alternatively set via CHANNEL_ID environment variable)
+# channel_id = 1333568486215254187
