@@ -24,6 +24,7 @@ impl ChannelIdConfig {
 pub struct BotSettings {
     pub discord_token: Option<String>,
     pub channel_id: Option<ChannelIdConfig>,
+    pub channel_ids: Option<Vec<ChannelIdConfig>>,
     #[serde(default = "default_api_url")]
     pub api_url: String,
     #[serde(default = "default_interval_seconds")]
@@ -47,7 +48,9 @@ struct ConfigFile {
 #[derive(Clone, Debug)]
 pub struct BotConfig {
     pub discord_token: String,
+    #[allow(dead_code)]
     pub channel_id: ChannelId,
+    pub channel_ids: Vec<ChannelId>,
     pub api_url: String,
     pub interval_seconds: u64,
 }
@@ -117,13 +120,63 @@ impl BotConfig {
                 "Missing Discord token! Set 'discord_token' in config.toml or provide DISCORD_TOKEN in environment.",
             );
 
-        let channel_id_raw = env::var("CHANNEL_ID")
-            .ok()
-            .and_then(|s| s.parse::<u64>().ok())
-            .or_else(|| settings.channel_id.as_ref().and_then(|c| c.to_u64()))
-            .expect(
-                "Missing or invalid Discord channel ID! Set 'channel_id' in config.toml or provide numeric CHANNEL_ID in environment.",
+        // Gather channel IDs from environment and config
+        let mut resolved_channel_ids: Vec<u64> = Vec::new();
+
+        // 1. Check CHANNEL_IDS environment variable (comma or space separated)
+        if let Ok(env_ids) = env::var("CHANNEL_IDS") {
+            for part in env_ids.split(|c| c == ',' || c == ' ') {
+                let trimmed = part.trim();
+                if !trimmed.is_empty() {
+                    if let Ok(id) = trimmed.parse::<u64>() {
+                        if !resolved_channel_ids.contains(&id) {
+                            resolved_channel_ids.push(id);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Check CHANNEL_ID environment variable
+        if let Ok(env_id) = env::var("CHANNEL_ID") {
+            if let Ok(id) = env_id.trim().parse::<u64>() {
+                if !resolved_channel_ids.contains(&id) {
+                    resolved_channel_ids.push(id);
+                }
+            }
+        }
+
+        // 3. Fallback to settings.channel_ids from config file
+        if resolved_channel_ids.is_empty() {
+            if let Some(cfg_ids) = settings.channel_ids {
+                for cid in cfg_ids {
+                    if let Some(id) = cid.to_u64() {
+                        if !resolved_channel_ids.contains(&id) {
+                            resolved_channel_ids.push(id);
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Fallback to settings.channel_id from config file
+        if resolved_channel_ids.is_empty() {
+            if let Some(cid) = settings.channel_id.as_ref().and_then(|c| c.to_u64()) {
+                resolved_channel_ids.push(cid);
+            }
+        }
+
+        if resolved_channel_ids.is_empty() {
+            panic!(
+                "Missing or invalid Discord channel ID(s)! Set 'channel_id' or 'channel_ids' in config.toml or provide numeric CHANNEL_ID / CHANNEL_IDS in environment."
             );
+        }
+
+        let channel_ids: Vec<ChannelId> = resolved_channel_ids
+            .into_iter()
+            .map(ChannelId::new)
+            .collect();
+        let primary_channel_id = channel_ids[0];
 
         if let Ok(url) = env::var("BACKEND_API_URL") {
             settings.api_url = url;
@@ -138,7 +191,8 @@ impl BotConfig {
 
         Self {
             discord_token,
-            channel_id: ChannelId::new(channel_id_raw),
+            channel_id: primary_channel_id,
+            channel_ids,
             api_url: settings.api_url,
             interval_seconds: settings.check_interval_seconds,
         }
@@ -182,6 +236,22 @@ mod tests {
         assert_eq!(bot.channel_id.unwrap().to_u64(), Some(9876543210123));
         assert_eq!(bot.api_url, "http://backend:8080");
         assert_eq!(bot.check_interval_seconds, 60);
+    }
+
+    #[test]
+    fn test_parse_bot_settings_with_multiple_channels() {
+        let toml_str = r#"
+        [bot]
+        discord_token = "my_token"
+        channel_ids = [111111111, "222222222", 333333333]
+        "#;
+        let config: ConfigFile = toml::from_str(toml_str).expect("Failed to parse");
+        let bot = config.bot.expect("bot section missing");
+        let cids = bot.channel_ids.expect("channel_ids missing");
+        assert_eq!(cids.len(), 3);
+        assert_eq!(cids[0].to_u64(), Some(111111111));
+        assert_eq!(cids[1].to_u64(), Some(222222222));
+        assert_eq!(cids[2].to_u64(), Some(333333333));
     }
 
     #[test]

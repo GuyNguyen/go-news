@@ -35,7 +35,10 @@ check_interval_seconds = 60
 # Discord Bot Token (Alternatively set via DISCORD_TOKEN environment variable)
 # discord_token = "your-bot-token-here"
 
-# Discord Channel ID where news embeds will be posted
-# Can be formatted as integer (1333568486215254187) or string ("1333568486215254187")
-# (Alternatively set via CHANNEL_ID environment variable)
+# Discord Channel ID(s) where news embeds will be posted
+# Single channel (integer or string):
+# channel_id = 1333568486215254187
+# Or multiple channels across multiple servers:
+# channel_ids = [1333568486215254187, 987654321098765432]
+# (Alternatively set via CHANNEL_ID or comma-separated CHANNEL_IDS environment variable)
 # channel_id = 1333568486215254187
