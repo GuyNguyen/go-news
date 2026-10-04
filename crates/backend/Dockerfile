@@ -1,26 +1,23 @@
 FROM rust:alpine AS builder
 
 WORKDIR /app
-RUN USER=root \
-    && apk add --no-cache musl-dev pkgconfig openssl-dev openssl-libs-static build-base
+RUN apk add --no-cache musl-dev pkgconfig openssl-dev openssl-libs-static build-base \
+    && rustup target add x86_64-unknown-linux-musl
 
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 
-RUN cargo build --release --bin go-news-backend
+RUN cargo build --release --target x86_64-unknown-linux-musl --bin go-news-backend
 
-FROM alpine:latest
+# Prepare data directory owned by distroless nonroot user (UID 65532)
+RUN mkdir -p /app/data && chown -R 65532:65532 /app/data
+
+FROM gcr.io/distroless/static-debian12:nonroot
 
 WORKDIR /app
-RUN apk update && apk add --no-cache openssl ca-certificates sqlite-libs \
-    && addgroup -S -g 10001 appgroup \
-    && adduser -S -u 10001 -G appgroup appuser \
-    && mkdir -p /app/data \
-    && chown -R appuser:appgroup /app
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/go-news-backend /app/go-news-backend
+COPY --from=builder --chown=65532:65532 /app/data /app/data
 
-COPY --from=builder /app/target/release/go-news-backend .
-RUN chown appuser:appgroup ./go-news-backend
+USER nonroot:nonroot
 
-USER appuser:appgroup
-
-CMD ["./go-news-backend"]
+CMD ["/app/go-news-backend"]

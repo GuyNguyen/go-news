@@ -1,24 +1,19 @@
 FROM rust:alpine AS builder
 
 WORKDIR /app
-RUN USER=root \
-    && apk add --no-cache musl-dev pkgconfig openssl-dev openssl-libs-static build-base
+RUN apk add --no-cache musl-dev pkgconfig openssl-dev openssl-libs-static build-base \
+    && rustup target add x86_64-unknown-linux-musl
 
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 
-RUN cargo build --release --bin go-news-bot
+RUN cargo build --release --target x86_64-unknown-linux-musl --bin go-news-bot
 
-FROM alpine:latest
+FROM gcr.io/distroless/static-debian12:nonroot
 
 WORKDIR /app
-RUN apk update && apk add --no-cache openssl ca-certificates \
-    && addgroup -S -g 10001 appgroup \
-    && adduser -S -u 10001 -G appgroup appuser
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/go-news-bot /app/go-news
 
-COPY --from=builder /app/target/release/go-news-bot ./go-news
-RUN chown appuser:appgroup ./go-news
+USER nonroot:nonroot
 
-USER appuser:appgroup
-
-CMD ["./go-news"]
+CMD ["/app/go-news"]
