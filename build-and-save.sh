@@ -1,8 +1,10 @@
 #!/bin/bash
 set -e
 
-# Build the images from docker-compose without cache
+echo "Building images for linux/amd64..."
 docker compose build --no-cache
 
-# Save the built images to a tar file
-docker save -o go-news-images.tar go-news-frontend go-news-backend
+echo "Saving images to go-news-images.tar..."
+docker save -o go-news-images.tar go-news-frontend:latest go-news-backend:latest
+
+echo "Done! Images exported to go-news-images.tar."
