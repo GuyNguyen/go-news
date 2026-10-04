@@ -19,6 +19,37 @@ pub struct RssItem {
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 pub struct MarkPostedRequest {
     pub links: Vec<String>,
+    #[serde(default)]
+    pub channel_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
+pub struct SubscriptionItem {
+    pub channel_id: String,
+    pub guild_id: Option<String>,
+    #[serde(default)]
+    pub created_at: Option<String>,
+    #[serde(default)]
+    pub delivered_count: i64,
+    #[serde(default)]
+    pub last_delivered_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+pub struct AddSubscriptionRequest {
+    pub channel_id: String,
+    #[serde(default)]
+    pub guild_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+pub struct ItemDeliveryStatus {
+    pub title: String,
+    pub link: String,
+    pub pub_date: String,
+    pub delivered_channels: Vec<String>,
+    pub pending_channels: Vec<String>,
 }
 
 /// Parses an RSS date string into a normalized UTC DateTime.
@@ -70,5 +101,20 @@ mod tests {
         // Empty string
         assert!(parse_rss_date("").is_none());
         assert!(parse_rss_date("invalid date").is_none());
+    }
+
+    #[test]
+    fn test_mark_posted_request_serde() {
+        // Without channel_id (backwards compatibility)
+        let json_legacy = r#"{"links":["https://example.com/1"]}"#;
+        let req1: MarkPostedRequest = serde_json::from_str(json_legacy).unwrap();
+        assert_eq!(req1.links, vec!["https://example.com/1"]);
+        assert_eq!(req1.channel_id, None);
+
+        // With channel_id
+        let json_multi = r#"{"links":["https://example.com/1"],"channel_id":"123456789"}"#;
+        let req2: MarkPostedRequest = serde_json::from_str(json_multi).unwrap();
+        assert_eq!(req2.links, vec!["https://example.com/1"]);
+        assert_eq!(req2.channel_id, Some("123456789".to_string()));
     }
 }
