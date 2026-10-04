@@ -22,7 +22,11 @@ async fn main() {
     let intents = GatewayIntents::GUILDS;
 
     // 3. Build Serenity client
-    let handler = BotHandler { config: config.clone() };
+    let api_client = api::BackendApiClient::new(config.api_url.clone());
+    let handler = BotHandler {
+        config: config.clone(),
+        api_client,
+    };
     let mut client = Client::builder(&config.discord_token, intents)
         .event_handler(handler)
         .await

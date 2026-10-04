@@ -135,14 +135,14 @@ impl BotConfig {
         }
 
         if resolved_channel_ids.is_empty() {
-            panic!("Missing Discord channel ID(s)! Set 'channel_id' or 'channel_ids' in config.toml.");
+            info!("No static channel IDs configured in config.toml. Subscriptions will be managed dynamically via Discord slash commands (/subscribe).");
         }
 
         let channel_ids: Vec<ChannelId> = resolved_channel_ids
             .into_iter()
             .map(ChannelId::new)
             .collect();
-        let primary_channel_id = channel_ids[0];
+        let primary_channel_id = channel_ids.first().copied().unwrap_or(ChannelId::new(1));
 
         Self {
             discord_token,
@@ -203,6 +203,19 @@ mod tests {
         assert_eq!(cids[0].to_u64(), Some(111111111));
         assert_eq!(cids[1].to_u64(), Some(222222222));
         assert_eq!(cids[2].to_u64(), Some(333333333));
+    }
+
+    #[test]
+    fn test_parse_bot_settings_without_channels() {
+        let toml_str = r#"
+        [bot]
+        discord_token = "my_token"
+        "#;
+        let config: ConfigFile = toml::from_str(toml_str).expect("Failed to parse");
+        let bot = config.bot.expect("bot section missing");
+        assert_eq!(bot.discord_token.as_deref(), Some("my_token"));
+        assert!(bot.channel_ids.is_none());
+        assert!(bot.channel_id.is_none());
     }
 
     #[test]

@@ -21,21 +21,45 @@ pub async fn run_checker(ctx: Context, config: BotConfig) {
     }
 
     info!(
-        "Checker task started. Polling every {} seconds for {} channel(s): {:?}.",
+        "Checker task started. Polling interval: {}s. Static config channels: {}.",
         config.interval_seconds,
-        config.channel_ids.len(),
-        config.channel_ids
+        config.channel_ids.len()
     );
 
     loop {
         interval.tick().await;
+
+        // Fetch dynamic subscriptions from backend and merge with static config channels
+        let mut target_channels: Vec<ChannelId> = config.channel_ids.clone();
+
+        match api_client.fetch_subscriptions().await {
+            Ok(subs) => {
+                for sub in subs {
+                    if let Ok(id_u64) = sub.channel_id.parse::<u64>() {
+                        let cid = ChannelId::new(id_u64);
+                        if !target_channels.contains(&cid) {
+                            target_channels.push(cid);
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                warn!("Could not fetch dynamic subscriptions from backend: {}. Using config channels.", e);
+            }
+        }
+
+        if target_channels.is_empty() {
+            info!("No channel subscriptions registered yet. Use /subscribe in a Discord channel to start receiving updates.");
+            continue;
+        }
+
         info!(
             "Checking for new posts across {} channel(s)...",
-            config.channel_ids.len()
+            target_channels.len()
         );
 
-        for channel_id in &config.channel_ids {
-            if let Err(e) = check_for_channel_updates(&ctx, &api_client, *channel_id).await {
+        for channel_id in target_channels {
+            if let Err(e) = check_for_channel_updates(&ctx, &api_client, channel_id).await {
                 error!("Error during news check for channel {}: {}", channel_id, e);
             }
         }
@@ -47,7 +71,7 @@ pub async fn check_for_channel_updates(
     ctx: &Context,
     api_client: &BackendApiClient,
     channel_id: ChannelId,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Box<dyn Error + Send + Sync>> {
     let channel_str = channel_id.to_string();
     let items = api_client.fetch_unposted_items(Some(&channel_str)).await?;
 
@@ -96,7 +120,7 @@ pub async fn check_for_updates(
     ctx: &Context,
     api_client: &BackendApiClient,
     config: &BotConfig,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<(), Box<dyn Error + Send + Sync>> {
     for channel_id in &config.channel_ids {
         check_for_channel_updates(ctx, api_client, *channel_id).await?;
     }
