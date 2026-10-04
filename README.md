@@ -10,10 +10,11 @@ The project is structured as a Cargo workspace with a decoupled architecture: an
 
 - **Automated RSS Ingestion**: Periodically polls RSS feeds and deduplicates articles.
 - **Anti-Spam Startup**: Automatically syncs existing feed items on fresh initialization to prevent flooding Discord channels with old news.
+- **Dynamic Multi-Server Subscriptions**: Supports self-serve Discord Slash Commands (`/subscribe`, `/unsubscribe`, `/news-status`) so server admins can manage their own channels.
 - **Multi-Channel Delivery Tracking**: Tracks delivered articles per channel/server independently so channels don't miss articles or receive duplicates.
 - **Auto-Pruning**: Automatically cleans up old articles based on a configurable retention period.
 - **Rich Discord Embeds**: Formats news posts with title, summary, publication date, and links.
-- **Single Central Configuration**: Configured entirely via a single `config.toml` file.
+- **Single Central Configuration**: Configured via `config.toml` (or entirely dynamic via slash commands).
 - **Docker Ready**: Includes `docker-compose.yml` and Dockerfiles for zero-hassle deployment.
 
 ---

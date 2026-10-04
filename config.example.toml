@@ -35,8 +35,10 @@ check_interval_seconds = 60
 # Discord Bot Token
 # discord_token = "your-bot-token-here"
 
-# Discord Channel ID(s) where news embeds will be posted
+# Discord Channel ID(s) where news embeds will be posted (Optional).
+# If omitted or empty, channels can be dynamically subscribed by server admins
+# using the `/subscribe` Discord slash command in any channel.
 # Single channel (integer or string):
 # channel_id = 1333568486215254187
-# Or multiple channels across multiple servers:
+# Or multiple static channels across multiple servers:
 # channel_ids = [1333568486215254187, 987654321098765432]
