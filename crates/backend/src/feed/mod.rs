@@ -25,9 +25,31 @@ pub async fn fetch_and_store_feed_internal(
         .timeout(Duration::from_secs(30))
         .build()?;
 
-    let response = http_client.get(feed_url).send().await?.error_for_status()?;
-    let content = response.bytes().await?;
-    info!("Successfully fetched RSS feed.");
+    let mut response = http_client.get(feed_url).send().await?.error_for_status()?;
+
+    const MAX_FEED_BYTES: usize = 10 * 1024 * 1024; // 10 MB limit
+    if let Some(len) = response.content_length() {
+        if len > MAX_FEED_BYTES as u64 {
+            return Err(format!(
+                "Feed response exceeds maximum limit of {} bytes (got {})",
+                MAX_FEED_BYTES, len
+            )
+            .into());
+        }
+    }
+
+    let mut content = Vec::new();
+    while let Some(chunk) = response.chunk().await? {
+        if content.len() + chunk.len() > MAX_FEED_BYTES {
+            return Err(format!(
+                "Feed response exceeded maximum limit of {} bytes",
+                MAX_FEED_BYTES
+            )
+            .into());
+        }
+        content.extend_from_slice(&chunk);
+    }
+    info!("Successfully fetched RSS feed ({} bytes).", content.len());
 
     let channel = Channel::read_from(&content[..])?;
     info!("Successfully parsed RSS channel: {}", channel.title());
