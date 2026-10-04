@@ -1,8 +1,24 @@
 # go-news
 
+[![Invite Bot](https://img.shields.io/badge/Discord-Invite%20Bot-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/oauth2/authorize?client_id=1333553728451645461&permissions=84992&integration_type=0&scope=bot+applications.commands)
+
 An RSS news feed aggregator and Discord notification bot built with Rust, specifically designed for Go (Baduk / Weiqi) news (such as [igomely.com](https://www.igomely.com)).
 
+> **Add to your Discord Server**: Click the badge above or use the [Direct Invite Link](https://discord.com/oauth2/authorize?client_id=1333553728451645461&permissions=84992&integration_type=0&scope=bot+applications.commands). Once added, type `/subscribe` in any channel to start receiving news updates!
+
 The project is structured as a Cargo workspace with a decoupled architecture: an Actix-web backend handles RSS fetching, deduplication, and SQLite persistence, while a Serenity-based Discord bot polls the backend and posts formatted embeds to one or more Discord channels.
+
+---
+
+## Discord Slash Commands
+
+Once the bot is invited to your server, administrators can configure channel subscriptions directly in chat:
+
+| Command | Description | Required Permission |
+|---|---|---|
+| `/subscribe` | Subscribes the current channel to Go news updates (initializes history so no spam occurs) | Manage Channels |
+| `/unsubscribe` | Unsubscribes the current channel from Go news updates | Manage Channels |
+| `/news-status` | Checks if the current channel is actively receiving Go news updates | None |
 
 ---
 
