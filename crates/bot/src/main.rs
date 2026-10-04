@@ -5,21 +5,18 @@ mod poller;
 
 use config::BotConfig;
 use discord::BotHandler;
-use dotenv::dotenv;
 use log::{error, info};
 use serenity::prelude::*;
 
 #[tokio::main]
 async fn main() {
-    dotenv().ok();
-
     env_logger::Builder::from_env(
         env_logger::Env::default().default_filter_or("info,serenity=warn,tracing=warn"),
     )
     .init();
 
-    // 1. Load validated configuration
-    let config = BotConfig::from_env();
+    // 1. Load validated configuration from TOML
+    let config = BotConfig::load();
 
     // 2. Configure Gateway Intents (GUILDS is non-privileged, public-ready)
     let intents = GatewayIntents::GUILDS;

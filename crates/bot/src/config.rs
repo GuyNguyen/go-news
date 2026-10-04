@@ -108,58 +108,26 @@ impl BotConfig {
         }
 
         if !loaded {
-            info!("No config file loaded. Relying on environment variables and defaults.");
+            info!("No config file loaded from candidate paths: {:?}. Ensure config.toml exists.", candidate_paths);
         }
 
-        // Environment overrides
-        let discord_token = env::var("DISCORD_TOKEN")
-            .ok()
+        let discord_token = settings
+            .discord_token
             .filter(|s| !s.trim().is_empty())
-            .or(settings.discord_token)
-            .expect(
-                "Missing Discord token! Set 'discord_token' in config.toml or provide DISCORD_TOKEN in environment.",
-            );
+            .expect("Missing Discord token! Set 'discord_token' in config.toml.");
 
-        // Gather channel IDs from environment and config
         let mut resolved_channel_ids: Vec<u64> = Vec::new();
 
-        // 1. Check CHANNEL_IDS environment variable (comma or space separated)
-        if let Ok(env_ids) = env::var("CHANNEL_IDS") {
-            for part in env_ids.split(|c| c == ',' || c == ' ') {
-                let trimmed = part.trim();
-                if !trimmed.is_empty() {
-                    if let Ok(id) = trimmed.parse::<u64>() {
-                        if !resolved_channel_ids.contains(&id) {
-                            resolved_channel_ids.push(id);
-                        }
+        if let Some(cfg_ids) = settings.channel_ids {
+            for cid in cfg_ids {
+                if let Some(id) = cid.to_u64() {
+                    if !resolved_channel_ids.contains(&id) {
+                        resolved_channel_ids.push(id);
                     }
                 }
             }
         }
 
-        // 2. Check CHANNEL_ID environment variable
-        if let Ok(env_id) = env::var("CHANNEL_ID") {
-            if let Ok(id) = env_id.trim().parse::<u64>() {
-                if !resolved_channel_ids.contains(&id) {
-                    resolved_channel_ids.push(id);
-                }
-            }
-        }
-
-        // 3. Fallback to settings.channel_ids from config file
-        if resolved_channel_ids.is_empty() {
-            if let Some(cfg_ids) = settings.channel_ids {
-                for cid in cfg_ids {
-                    if let Some(id) = cid.to_u64() {
-                        if !resolved_channel_ids.contains(&id) {
-                            resolved_channel_ids.push(id);
-                        }
-                    }
-                }
-            }
-        }
-
-        // 4. Fallback to settings.channel_id from config file
         if resolved_channel_ids.is_empty() {
             if let Some(cid) = settings.channel_id.as_ref().and_then(|c| c.to_u64()) {
                 resolved_channel_ids.push(cid);
@@ -167,9 +135,7 @@ impl BotConfig {
         }
 
         if resolved_channel_ids.is_empty() {
-            panic!(
-                "Missing or invalid Discord channel ID(s)! Set 'channel_id' or 'channel_ids' in config.toml or provide numeric CHANNEL_ID / CHANNEL_IDS in environment."
-            );
+            panic!("Missing Discord channel ID(s)! Set 'channel_id' or 'channel_ids' in config.toml.");
         }
 
         let channel_ids: Vec<ChannelId> = resolved_channel_ids
@@ -178,17 +144,6 @@ impl BotConfig {
             .collect();
         let primary_channel_id = channel_ids[0];
 
-        if let Ok(url) = env::var("BACKEND_API_URL") {
-            settings.api_url = url;
-        }
-
-        if let Some(interval) = env::var("CHECK_INTERVAL_SECONDS")
-            .ok()
-            .and_then(|s| s.parse::<u64>().ok())
-        {
-            settings.check_interval_seconds = interval;
-        }
-
         Self {
             discord_token,
             channel_id: primary_channel_id,
@@ -196,10 +151,6 @@ impl BotConfig {
             api_url: settings.api_url,
             interval_seconds: settings.check_interval_seconds,
         }
-    }
-
-    pub fn from_env() -> Self {
-        Self::load()
     }
 }
 

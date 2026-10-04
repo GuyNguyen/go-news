@@ -9,14 +9,12 @@ use log::{info, warn};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    dotenv::dotenv().ok();
-
     env_logger::Builder::from_env(
         env_logger::Env::default().default_filter_or("info,actix_web=info,sqlx=warn"),
     )
     .init();
 
-    let config = AppConfig::from_env();
+    let config = AppConfig::load();
     info!("Connecting to SQLite database at {}...", config.database_url);
 
     let pool = db::create_pool(&config.database_url)

@@ -78,8 +78,7 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
-    /// Loads configuration from TOML file (default: config.toml or CONFIG_PATH),
-    /// layered with environment variable overrides.
+    /// Loads configuration directly from TOML file (default: config.toml or CONFIG_PATH).
     pub fn load() -> Self {
         let candidate_paths = if let Ok(custom) = env::var("CONFIG_PATH") {
             vec![std::path::PathBuf::from(custom)]
@@ -130,33 +129,7 @@ impl AppConfig {
         }
 
         if !loaded {
-            info!("No config file loaded. Relying on environment variables and defaults.");
-        }
-
-        // Environment variable overrides
-        if let Ok(val) = env::var("DATABASE_URL") {
-            settings.database_url = val;
-        }
-        if let Ok(val) = env::var("FEED_URL") {
-            settings.feed_url = val;
-        }
-        if let Ok(val) = env::var("CHECK_INTERVAL_SECONDS") {
-            if let Ok(num) = val.parse::<u64>() {
-                settings.check_interval_seconds = num;
-            }
-        }
-        if let Ok(val) = env::var("RETENTION_DAYS") {
-            if let Ok(num) = val.parse::<i64>() {
-                settings.retention_days = num;
-            }
-        }
-        if let Ok(val) = env::var("HOST") {
-            settings.host = val;
-        }
-        if let Ok(val) = env::var("PORT") {
-            if let Ok(num) = val.parse::<u16>() {
-                settings.port = num;
-            }
+            info!("No config file loaded from candidate paths: {:?}. Using default configuration.", candidate_paths);
         }
 
         Self {
@@ -167,10 +140,6 @@ impl AppConfig {
             host: settings.host,
             port: settings.port,
         }
-    }
-
-    pub fn from_env() -> Self {
-        Self::load()
     }
 }
 

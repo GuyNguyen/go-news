@@ -3,7 +3,7 @@
 # ==============================================================================
 # Central configuration for both the backend service and the Discord bot.
 # Copy this file to `config.toml` to customize your deployment.
-# Sensitive values (like discord_token) can be set here or via environment variables.
+# All configurations are managed directly in this TOML file.
 
 [backend]
 # SQLite database connection URL
@@ -32,7 +32,7 @@ api_url = "http://backend:8080"
 # Polling interval in seconds to check the backend for unposted news items
 check_interval_seconds = 60
 
-# Discord Bot Token (Alternatively set via DISCORD_TOKEN environment variable)
+# Discord Bot Token
 # discord_token = "your-bot-token-here"
 
 # Discord Channel ID(s) where news embeds will be posted
@@ -40,5 +40,3 @@ check_interval_seconds = 60
 # channel_id = 1333568486215254187
 # Or multiple channels across multiple servers:
 # channel_ids = [1333568486215254187, 987654321098765432]
-# (Alternatively set via CHANNEL_ID or comma-separated CHANNEL_IDS environment variable)
-# channel_id = 1333568486215254187

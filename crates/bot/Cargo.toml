@@ -5,7 +5,6 @@ edition = "2024"
 
 [dependencies]
 chrono = "0.4.42"
-dotenv = "0.15.0"
 env_logger = "0.11.8"
 go-news-shared = { path = "../shared" }
 log = "0.4.28"

@@ -7,7 +7,6 @@ edition = "2024"
 actix-web = "4.9.0"
 actix-rt = { version = "2.11", features = ["net", "signal"] }
 chrono = "0.4.42"
-dotenv = "0.15.0"
 env_logger = "0.11.8"
 go-news-shared = { path = "../shared", features = ["sqlx"] }
 log = "0.4.28"

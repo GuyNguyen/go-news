@@ -9,9 +9,6 @@ services:
     working_dir: /app
     volumes:
       - ./config.toml:/app/config.toml:ro
-    env_file:
-      - path: .env
-        required: false
     security_opt:
       - no-new-privileges:true
     depends_on:
@@ -30,9 +27,6 @@ services:
     volumes:
       - ./data:/app/data
       - ./config.toml:/app/config.toml:ro
-    env_file:
-      - path: .env
-        required: false
     security_opt:
       - no-new-privileges:true
     expose:
