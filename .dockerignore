@@ -1,0 +1,16 @@
+.git
+.gitignore
+.gitignore.ai
+.agents
+target
+data
+*.db
+*.db-wal
+*.db-shm
+config.toml
+notes.md
+go-news-images.tar
+*.tar
+*.tar.gz
+graphify-out
+*.log
