@@ -9,5 +9,9 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
         .service(items::init_posted_items)
         .service(items::get_items)
         .service(items::get_unposted_items)
-        .service(items::mark_items_posted);
+        .service(items::mark_items_posted)
+        .service(items::get_delivery_status)
+        .service(items::get_subscriptions)
+        .service(items::add_subscription)
+        .service(items::remove_subscription);
 }

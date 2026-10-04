@@ -47,6 +47,21 @@ pub async fn create_pool(database_url: &str) -> Result<SqlitePool, sqlx::Error> 
         );
         CREATE INDEX IF NOT EXISTS idx_items_posted ON items(posted);
         CREATE UNIQUE INDEX IF NOT EXISTS idx_items_link ON items(link);
+
+        CREATE TABLE IF NOT EXISTS subscriptions (
+            channel_id TEXT PRIMARY KEY,
+            guild_id TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS item_deliveries (
+            channel_id TEXT NOT NULL,
+            item_link TEXT NOT NULL,
+            delivered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (channel_id, item_link)
+        );
+        CREATE INDEX IF NOT EXISTS idx_item_deliveries_link ON item_deliveries(item_link);
+        CREATE INDEX IF NOT EXISTS idx_item_deliveries_channel ON item_deliveries(channel_id);
         "#,
     )
     .execute(&pool)

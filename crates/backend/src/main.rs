@@ -248,4 +248,148 @@ mod tests {
         let remaining = db::count_items(&pool).await.expect("Failed to count");
         assert_eq!(remaining, 1);
     }
+
+    #[tokio::test]
+    async fn test_multi_channel_delivery_tracking() {
+        let pool = db::create_pool("sqlite::memory:")
+            .await
+            .expect("Failed to create in-memory pool");
+
+        // Register two distinct channels / servers
+        db::add_subscription(&pool, "channel_alpha", Some("guild_1"))
+            .await
+            .expect("Failed to add channel_alpha");
+        db::add_subscription(&pool, "channel_beta", Some("guild_2"))
+            .await
+            .expect("Failed to add channel_beta");
+
+        // Insert two fresh news items
+        db::insert_item_if_new(
+            &pool,
+            "Go 1.25 Released",
+            "https://go.dev/doc/go1.25",
+            "New Go features",
+            "2026-10-01T00:00:00Z",
+            false,
+        )
+        .await
+        .expect("Failed to insert item 1");
+
+        db::insert_item_if_new(
+            &pool,
+            "Rust 2026 Edition",
+            "https://blog.rust-lang.org/2026",
+            "Rust Edition updates",
+            "2026-10-02T00:00:00Z",
+            false,
+        )
+        .await
+        .expect("Failed to insert item 2");
+
+        // Both channels initially see 2 unposted items
+        let alpha_unposted = db::get_unposted_items_for_channel(&pool, "channel_alpha")
+            .await
+            .expect("Failed to fetch unposted for alpha");
+        assert_eq!(alpha_unposted.len(), 2);
+
+        let beta_unposted = db::get_unposted_items_for_channel(&pool, "channel_beta")
+            .await
+            .expect("Failed to fetch unposted for beta");
+        assert_eq!(beta_unposted.len(), 2);
+
+        // Mark item 1 posted ONLY for channel_alpha
+        let updated = db::mark_items_posted_for_channel(
+            &pool,
+            &["https://go.dev/doc/go1.25".to_string()],
+            "channel_alpha",
+        )
+        .await
+        .expect("Failed to mark posted for alpha");
+        assert_eq!(updated, 1);
+
+        // channel_alpha now only has item 2 pending
+        let alpha_unposted = db::get_unposted_items_for_channel(&pool, "channel_alpha")
+            .await
+            .expect("Failed to fetch unposted for alpha");
+        assert_eq!(alpha_unposted.len(), 1);
+        assert_eq!(alpha_unposted[0].link, "https://blog.rust-lang.org/2026");
+
+        // channel_beta STILL has BOTH items pending! (Item 1 is NOT lost)
+        let beta_unposted = db::get_unposted_items_for_channel(&pool, "channel_beta")
+            .await
+            .expect("Failed to fetch unposted for beta");
+        assert_eq!(beta_unposted.len(), 2);
+
+        // Mark item 1 and item 2 posted for channel_beta
+        db::mark_items_posted_for_channel(
+            &pool,
+            &[
+                "https://go.dev/doc/go1.25".to_string(),
+                "https://blog.rust-lang.org/2026".to_string(),
+            ],
+            "channel_beta",
+        )
+        .await
+        .expect("Failed to mark posted for beta");
+
+        // Verify channel_beta has 0 unposted items
+        let beta_unposted = db::get_unposted_items_for_channel(&pool, "channel_beta")
+            .await
+            .expect("Failed to fetch unposted for beta");
+        assert_eq!(beta_unposted.len(), 0);
+
+        // Check global delivery status report across servers
+        let statuses = db::get_delivery_statuses(&pool, 10)
+            .await
+            .expect("Failed to fetch delivery status");
+        assert_eq!(statuses.len(), 2);
+
+        // Find status for Go 1.25
+        let go_status = statuses
+            .iter()
+            .find(|s| s.link == "https://go.dev/doc/go1.25")
+            .unwrap();
+        assert!(go_status.delivered_channels.contains(&"channel_alpha".to_string()));
+        assert!(go_status.delivered_channels.contains(&"channel_beta".to_string()));
+        assert_eq!(go_status.pending_channels.len(), 0);
+
+        // Find status for Rust 2026 Edition
+        let rust_status = statuses
+            .iter()
+            .find(|s| s.link == "https://blog.rust-lang.org/2026")
+            .unwrap();
+        assert!(!rust_status.delivered_channels.contains(&"channel_alpha".to_string()));
+        assert!(rust_status.delivered_channels.contains(&"channel_beta".to_string()));
+        assert!(rust_status.pending_channels.contains(&"channel_alpha".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_init_posted_items_for_new_channel() {
+        let pool = db::create_pool("sqlite::memory:")
+            .await
+            .expect("Failed to create in-memory pool");
+
+        db::insert_item_if_new(
+            &pool,
+            "Historic News",
+            "https://example.com/historic",
+            "Historic",
+            "2026-10-01T00:00:00Z",
+            false,
+        )
+        .await
+        .expect("Failed to insert");
+
+        // A new server joins and runs init-posted
+        let initialized = db::init_posted_items_for_channel(&pool, "new_server_channel")
+            .await
+            .expect("Failed to init channel");
+        assert_eq!(initialized, 1);
+
+        // Unposted for new server is now empty (no spam)
+        let unposted = db::get_unposted_items_for_channel(&pool, "new_server_channel")
+            .await
+            .expect("Failed to get unposted");
+        assert_eq!(unposted.len(), 0);
+    }
 }
